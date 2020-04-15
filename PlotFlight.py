@@ -1,11 +1,20 @@
 from FlightPath import FlightPath
 from ParseWeather import FlightWinds
+from ArgParser import parser
 import numpy as np
 import folium
 import folium.plugins as plugins
 from scimath import units
 from scipy.spatial import ConvexHull
 import itertools
+
+parser.add_argument("-r","--relative",help="Display layer height (AGL) instead of elevation (MSL)",action="store_true")
+unitmap = { key:value for key,value in vars(units.length).items() if type(value) == units.unit.unit }
+parser.add_argument("-u","--unit",help="Units to display layer height in",choices=list(unitmap.keys()),default="feet")
+def store_html(arg):
+    if arg.endswith(".html"): return arg
+    return arg+".html"
+parser.add_argument("-o","--output",help="Specify output filename for flight track (html)",type=store_html,default="flight_path.html")
 
 colors = [
     'lightblue',
@@ -30,7 +39,8 @@ def getColor():
     except StopIteration:
         coliter = iter(colors)
         return next(coliter)
-def length_label(meters,convert=units.length.f):
+def length_label(meters):
+    convert = unitmap[parser.args.unit]
     value = units.convert(meters,units.length.m,convert)
     return "%i %s"%(value,convert.label)
 
@@ -56,7 +66,8 @@ def FlightTracks(m,flight):
     m.add_child(fg)
     
     for ilayer,layer in enumerate(flight):
-        label ="MSL: "+length_label(layer.avg_elev)
+        if parser.args.relative:label ="AGL: "+length_label(layer.avg_height)
+        else: label ="MSL: "+length_label(layer.avg_elev)
         color = getColor()
         print(label)
         lg = plugins.FeatureGroupSubGroup(fg,label)
@@ -86,9 +97,9 @@ def PlotPath(flight):
     FlightTracks(m,flight)
 
     folium.LayerControl(collapsed=False).add_to(m)
-    
-    m.save("flight_path.html")
+    print("Writing track to: %s"%parser.args.output)
+    m.save(parser.args.output)
 if __name__ == "__main__":
-    winds= FlightWinds(2020,4,15,12,2,"35.1850,-106.5974")
+    winds= FlightWinds(2019,10,15,7,2,"35.1850,-106.5974",tzone="US/Mountain")
     flight=FlightPath(winds)
     PlotPath(flight)

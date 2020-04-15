@@ -1,6 +1,9 @@
 import subprocess as sp
 from datetime import datetime
+from ArgParser import parser
 import pytz
+
+parser.add_argument("-raw","--raw-output",help="Display raw wind query output",action="store_true")
 
 def QueryWinds(utc,n_hrs,airport,source="Op40"):
     year,month,day,hour = utc.strftime("%Y %m %d %H").split()
@@ -14,7 +17,7 @@ class WindLayer:
         self.surface = data[0]==b"9"
         self.pressure,self.elev,self.temp,self.dewpt,self.wind_dir,self.wind_spd = [ float(value) for value in data[1:7] ]
     def __str__(self):
-        return "{pressure:7} {elev:7} {temp:7} {dewpt:7} {wind_dir:7} {wind_spd:7}".format(**vars(self))
+        return "{pressure:^12} {elev:^12} {temp:^12} {dewpt:^12} {wind_dir:^12} {wind_spd:^12}".format(**vars(self))
 class WindData(list):
     def __init__(self,data):
         self.data = data.decode()
@@ -35,18 +38,27 @@ class WindData(list):
             if int(layer.wind_spd) == 99999: remove.append(layer)
             layer.height = layer.elev - self.elev
         for layer in remove: self.remove(layer)
-    def __str__(self,raw=False):
-        if raw: return self.data
+    def __str__(self):
+        if parser.args.raw_output: return self.data
 
         string = ["{source} {lat} {lon} {elev}".format(**vars(self))]
-        string += [ "%2i: %s"%(i,str(layer)) for i,layer in enumerate(self) ]
+        header ="nLayer|Pressure(mbar)|Elevation(m)|Temp(0.1C)|DewPt(0.1C)|Direction|Speed(kt)".split("|")
+        string += ["{:^6}|{:^12}|{:^12}|{:^12}|{:^12}|{:^12}|{:^12}".format(*header)]
+        string += [ "%6i "%i+str(layer) for i,layer in enumerate(self) ]
         return "\n".join(string)
 class FlightWinds(list):
-    def __init__(self,year,month,day,hour,n_hrs,airport,source="Op40",tzone="US/Central"):
+    def __init__(self,date,n_hrs,airport,source="Op40",tzone="US/Central"):
         if any( char.isdigit() for char in airport ):
             self.lat,self.lon = [ abs(float(value)) for value in airport.split(",") ]
-        self.date = pytz.timezone(tzone).localize(datetime.strptime("{hour}-{day}-{month}-{year}".format(**vars()),"%H-%d-%m-%Y"))
+        # self.date = pytz.timezone(tzone).localize(datetime.strptime("{hour}-{day}-{month}-{year}".format(**vars()),"%H-%d-%m-%Y"))
+        self.date = date
         self.utc = self.date.astimezone(pytz.utc)
+        self.n_hrs = n_hrs
+        self.airport = airport
+        self.source = source
+
+        print("--Wind Query--\nLocal: {date}\nUTC  : {utc}\nDuration: {n_hrs} Hours\nAirport: {airport}\nSource: {source}".format(**vars(self)))
+        
         data = QueryWinds(self.utc,n_hrs,airport,source)
         timesteps = data.split(b'\n\n')[:-1]
         self += [ WindData(timestep) for timestep in timesteps ]
@@ -60,8 +72,8 @@ class FlightWinds(list):
                 data.lon = self.lon
         self.elev = self.start.elev
         self.source = self.start.source
-    def __str__(self,raw=False):
-        if raw: return '\n\n'.join( str(data) for data in self )
+    def __str__(self):
+        if parser.args.raw_output: return '\n\n'.join( str(data) for data in self )
         string = [ self.date.strftime("%Y-%b-%d %H:00:00") ]
         string += [ str(data) for data in self ]
         return "\n\n".join(string)

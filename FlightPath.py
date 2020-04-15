@@ -18,6 +18,7 @@ class FlightLayer(list):
     def __str__(self): return str([ str(step) for step in self])
     def process(self,lat,lon):
         self.avg_elev = sum(step.elev for step in self)/len(self)
+        self.avg_height = sum(step.height for step in self)/len(self)
         self.lat = lat
         self.lon = lon
         
