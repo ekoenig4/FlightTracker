@@ -28,7 +28,7 @@ class FlightLayer(list):
             step.lon = lon
         self.path = [[self.lat,self.lon]] + [[step.lat,step.lon] for step in self]
 class FlightPath(list):
-    def __init__(self,winds,ceiling=3800):
+    def __init__(self,winds,ceiling=3600,npaths=12):
         self.winds = winds
         self.ceiling = ceiling
 
@@ -44,6 +44,7 @@ class FlightPath(list):
         self.append(surface)
         for wind in self.start[1:]:
             if wind.elev >= ceiling: break
+            if len(self) >= npaths: break
             flight = FlightLayer(wind)
             for step in self.winds[1:]:
                 layer = next( (layer for layer in step[1:] if layer == flight),None )

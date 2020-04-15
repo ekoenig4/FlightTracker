@@ -30,7 +30,7 @@ def getColor():
     except StopIteration:
         coliter = iter(colors)
         return next(coliter)
-def length_label(meters,convert=units.length.m):
+def length_label(meters,convert=units.length.f):
     value = units.convert(meters,units.length.m,convert)
     return "%i %s"%(value,convert.label)
 
@@ -90,6 +90,5 @@ def PlotPath(flight):
     m.save("flight_path.html")
 if __name__ == "__main__":
     winds= FlightWinds(2020,4,15,12,2,"35.1850,-106.5974")
-    print(winds)
     flight=FlightPath(winds)
-    # PlotPath(flight)
+    PlotPath(flight)

@@ -14,7 +14,7 @@ class WindLayer:
         self.surface = data[0]==b"9"
         self.pressure,self.elev,self.temp,self.dewpt,self.wind_dir,self.wind_spd = [ float(value) for value in data[1:7] ]
     def __str__(self):
-        return "{pressure} {elev} {temp} {dewpt} {wind_dir} {wind_spd}".format(**vars(self))
+        return "{pressure:7} {elev:7} {temp:7} {dewpt:7} {wind_dir:7} {wind_spd:7}".format(**vars(self))
 class WindData(list):
     def __init__(self,data):
         self.data = data.decode()
@@ -30,14 +30,16 @@ class WindData(list):
         self += [ WindLayer(line.split()) for line in it ]
         self.surface = self[0]
         if self.elev == 99999.0: self.elev = self.surface.elev
+        remove=[]
         for layer in self:
-            if layer.wind_spd == 99999.0: self.remove(layer)
+            if int(layer.wind_spd) == 99999: remove.append(layer)
             layer.height = layer.elev - self.elev
+        for layer in remove: self.remove(layer)
     def __str__(self,raw=False):
         if raw: return self.data
 
         string = ["{source} {lat} {lon} {elev}".format(**vars(self))]
-        string += [ "%i: %s"%(i,str(layer)) for i,layer in enumerate(self) ]
+        string += [ "%2i: %s"%(i,str(layer)) for i,layer in enumerate(self) ]
         return "\n".join(string)
 class FlightWinds(list):
     def __init__(self,year,month,day,hour,n_hrs,airport,source="Op40",tzone="US/Central"):
