@@ -31,23 +31,38 @@ class WindData(list):
         self.surface = self[0]
         if self.elev == 99999.0: self.elev = self.surface.elev
         for layer in self:
-            if layer.pressure == 10000.0: self.remove(layer)
+            if layer.wind_spd == 99999.0: self.remove(layer)
             layer.height = layer.elev - self.elev
-    def __str__(self): return self.data
-            
+    def __str__(self,raw=False):
+        if raw: return self.data
+
+        string = ["{source} {lat} {lon} {elev}".format(**vars(self))]
+        string += [ "%i: %s"%(i,str(layer)) for i,layer in enumerate(self) ]
+        return "\n".join(string)
 class FlightWinds(list):
     def __init__(self,year,month,day,hour,n_hrs,airport,source="Op40",tzone="US/Central"):
+        if any( char.isdigit() for char in airport ):
+            self.lat,self.lon = [ abs(float(value)) for value in airport.split(",") ]
         self.date = pytz.timezone(tzone).localize(datetime.strptime("{hour}-{day}-{month}-{year}".format(**vars()),"%H-%d-%m-%Y"))
         self.utc = self.date.astimezone(pytz.utc)
         data = QueryWinds(self.utc,n_hrs,airport,source)
         timesteps = data.split(b'\n\n')[:-1]
         self += [ WindData(timestep) for timestep in timesteps ]
         self.start = self[0]
-        self.lat = self.start.lat
-        self.lon = self.start.lon
+        if not hasattr(self,"lat"):
+            self.lat = self.start.lat
+            self.lon = self.start.lon
+        else:
+            for data in self:
+                data.lat = self.lat
+                data.lon = self.lon
         self.elev = self.start.elev
         self.source = self.start.source
-    def __str__(self): return '\n\n'.join(str(data) for data in self)
+    def __str__(self,raw=False):
+        if raw: return '\n\n'.join( str(data) for data in self )
+        string = [ self.date.strftime("%Y-%b-%d %H:00:00") ]
+        string += [ str(data) for data in self ]
+        return "\n\n".join(string)
 if __name__ == "__main__":
-    flight_winds= FlightWinds(2020,4,15,12,2,"44.42%2C-89.23")
+    flight_winds= FlightWinds(2020,4,15,12,2,"44.42,-89.23")
     print(flight_winds)
