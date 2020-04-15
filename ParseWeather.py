@@ -13,7 +13,9 @@ class WindLayer:
     def __init__(self,data):
         self.surface = data[0]==b"9"
         self.pressure,self.elev,self.temp,self.dewpt,self.wind_dir,self.wind_spd = [ float(value) for value in data[1:7] ]
-class WindData:
+    def __str__(self):
+        return "{pressure} {elev} {temp} {dewpt} {wind_dir} {wind_spd}".format(**vars(self))
+class WindData(list):
     def __init__(self,data):
         self.data = data.decode()
         data = data.split(b'\n')[1:]
@@ -25,27 +27,27 @@ class WindData:
         line = FindLine(it,lambda line:line.split()[0]==b"1").split()
         self.lat,self.lon,self.elev = [ float(value) for value in line[3:6] ]
         FindLine(it,lambda line:line.split()[0]==b"3")
-        self.layers = [ WindLayer(line.split()) for line in it ]
-        self.surface = self.layers[0]
+        self += [ WindLayer(line.split()) for line in it ]
+        self.surface = self[0]
         if self.elev == 99999.0: self.elev = self.surface.elev
-        for layer in list(self.layers):
-            if layer.pressure == 10000.0: self.layers.remove(layer)
+        for layer in self:
+            if layer.pressure == 10000.0: self.remove(layer)
             layer.height = layer.elev - self.elev
     def __str__(self): return self.data
             
-class FlightWinds:
+class FlightWinds(list):
     def __init__(self,year,month,day,hour,n_hrs,airport,source="Op40",tzone="US/Central"):
         self.date = pytz.timezone(tzone).localize(datetime.strptime("{hour}-{day}-{month}-{year}".format(**vars()),"%H-%d-%m-%Y"))
         self.utc = self.date.astimezone(pytz.utc)
         data = QueryWinds(self.utc,n_hrs,airport,source)
         timesteps = data.split(b'\n\n')[:-1]
-        self.wind_data = [ WindData(timestep) for timestep in timesteps ]
-        self.start = self.wind_data[0]
+        self += [ WindData(timestep) for timestep in timesteps ]
+        self.start = self[0]
         self.lat = self.start.lat
         self.lon = self.start.lon
         self.elev = self.start.elev
         self.source = self.start.source
-    def __str__(self): return '\n\n'.join(str(data) for data in self.wind_data)
+    def __str__(self): return '\n\n'.join(str(data) for data in self)
 if __name__ == "__main__":
     flight_winds= FlightWinds(2020,4,15,12,2,"44.42%2C-89.23")
     print(flight_winds)
