@@ -7,7 +7,13 @@ convt=1.852/111.111 # nautical miles to latitude degree
 lat = na * 1.852km/na * 1deg/111.111km
 lon = na * 1.852km/na * 1deg/(111.111*cos(lat)km)
 """
-
+def CalculatePath(lat,lon,timesteps):
+    path = [ [lat,lon] ]
+    for step in timesteps:
+        lat += convt * step.wind_spd * np.cos( np.deg2rad(step.wind_dir) )
+        lon += convt * step.wind_spd * np.sin( np.deg2rad(step.wind_dir) )/np.cos(lat)
+        path.append( [lat,lon] )
+    return path
 class FlightLayer(list):
     def __init__(self,start_wind):
         self.start = start_wind
@@ -21,18 +27,17 @@ class FlightLayer(list):
         self.avg_height = sum(step.height for step in self)/len(self)
         self.lat = lat
         self.lon = lon
-        
-        for step in self:
-            lat += convt * step.wind_spd * np.cos( np.deg2rad(step.wind_dir) )
-            lon += convt * step.wind_spd * np.sin( np.deg2rad(step.wind_dir) )/np.cos(lat)
-            step.lat = lat
-            step.lon = lon
-        self.path = [[self.lat,self.lon]] + [[step.lat,step.lon] for step in self]
+        self.path = CalculatePath(lat,lon,self)
+
+        for cor,step in zip(self.path[1:],self):
+            step.lat = cor[0]
+            step.lon = cor[1]
 class FlightPath(list):
     def __init__(self,winds,ceiling=3600,npaths=12):
         self.winds = winds
         self.ceiling = ceiling
 
+        self.n_hrs = self.winds.n_hrs
         self.date = self.winds.date
         self.start = self.winds.start
         self.lat = self.start.lat

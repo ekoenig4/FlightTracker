@@ -1,4 +1,4 @@
-from FlightPath import FlightPath
+from FlightPath import FlightPath,CalculatePath
 from ParseWeather import FlightWinds
 from ArgParser import parser
 import numpy as np
@@ -48,8 +48,15 @@ def FlightArea(m,flight):
     fg = folium.FeatureGroup(name="Flight Area")
     m.add_child(fg)
 
+    matrix = list(map(list, zip(*[ list(layer) for layer in flight ])))
     points = []
-    for layer in flight: points += layer.path
+
+    combs = itertools.combinations_with_replacement(range(len(flight)),flight.n_hrs)
+    for comb in combs:
+        comb = [ matrix[nhr][nla] for nhr,nla in enumerate(comb) ]
+        path = CalculatePath(flight.lat,flight.lon,comb)
+        points += path
+    
     points.sort()
     points = np.array(list(points for points,_ in itertools.groupby(points)),float)
     hull = ConvexHull(points)
